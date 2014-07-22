@@ -4,6 +4,24 @@ MAINTAINER Sergey Zhukov, sergey@jetbrains.com
 
 ADD glusterfs-epel.repo /etc/yum.repos.d/
 
-RUN yum -y install glusterfs-server
+RUN yum -y install glusterfs-server openssh-server sudo
 
-CMD /bin/bash
+RUN mkdir -p /export/brick1 /mnt/storage
+
+VOLUME ["/mnt/storage"]
+
+# Fix the problem with SSH login to container
+RUN sed -i "/pam_loginuid.so/ s/\(.*\)/#\1/" /etc/pam.d/sshd
+
+RUN groupadd --system  sshusers ; echo "AllowGroups sshusers" >> /etc/ssh/sshd_config
+RUN echo "%wheel    ALL=(ALL)    ALL" > /etc/sudoers.d/0_wheel
+
+RUN /usr/sbin/adduser -p '$1$RLX1qyZP$5EfZJ124X1Ewh7YRfzPVp0' gluster-ssh; usermod --append --groups sshusers,wheel gluster-ssh
+
+ADD run-services.sh /
+
+RUN chmod a+x /run-services.sh
+
+CMD /run-services.sh
+
+EXPOSE 22 24007 24008 49152
